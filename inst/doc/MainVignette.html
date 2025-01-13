@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+<meta name="date" content="2025-01-10" />
+
+<title>FastRerandomize Package Tutorial</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">FastRerandomize Package Tutorial</h1>
+<h4 class="date">2025-01-10</h4>
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>This vignette demonstrates how to use the fastrerandomize package for
+generating and testing experimental designs in an agricultural study
+setting based on:</p>
+<ul>
+<li>Burchardi, K.B., Gulesci, S., Lerva, B. and Sulaiman, M., 2019.
+Moral hazard: Experimental Evidence from Tenancy Contracts. The
+Quarterly Journal of Economics, 134(1), pp.281-347.</li>
+</ul>
+<p>We will walk through:</p>
+<ul>
+<li>Generating synthetic covariate data</li>
+<li>Creating candidate randomizations</li>
+<li>Exploring the S3 methods for printing, summarizing, and plotting
+randomization objects</li>
+<li>Conducting a randomization-based inference test</li>
+</ul>
+<p>Note: This tutorial assumes you have installed the fastrerandomize
+package, either from source or via GitHub:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># If you haven&#39;t installed or set up the package:</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># devtools::install_github(&quot;cjerzak/fastrerandomize-software/fastrerandomize&quot;)</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># (Done once) Optionally build the JAX backend if needed</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co"># fastrerandomize::build_backend()</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co"># note that this vignette can be found like so: </span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co"># vignette(package = &quot;fastrerandomize&quot;)</span></span></code></pre></div>
+</div>
+<div id="obtain-pre-treatment-covariate-data" class="section level2">
+<h2>1. Obtain Pre-treatment Covariate Data</h2>
+<p>For illustration, we use several pre-treatment covariates from the
+original experiment.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(fastrerandomize)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Obtain pre-treatment covariates </span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">data</span>(QJEData, <span class="at">package =</span> <span class="st">&quot;fastrerandomize&quot;</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>myCovariates <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;children&quot;</span>,<span class="st">&quot;married&quot;</span>,<span class="st">&quot;hh_size&quot;</span>,<span class="st">&quot;hh_sexrat&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>QJEData <span class="ot">&lt;-</span> QJEData[<span class="sc">!</span><span class="fu">is.na</span>(<span class="fu">rowSums</span>(QJEData[,myCovariates])),]</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>X <span class="ot">&lt;-</span> QJEData[,myCovariates]</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  </span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co"># Analysis parameters</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>n_units   <span class="ot">&lt;-</span> <span class="fu">nrow</span>(X)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>n_treated <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">nrow</span>(X)<span class="sc">/</span><span class="dv">2</span>)</span></code></pre></div>
+</div>
+<div id="generate-randomizations" class="section level2">
+<h2>2. Generate Randomizations</h2>
+<p>We now create our candidate randomizations using the function
+<code>generate_randomizations()</code> from fastrerandomize. Depending
+on the scale and complexity of your experiment, you may choose either
+exact enumeration (“exact”) or Monte Carlo (“monte_carlo”)
+randomization.</p>
+<p>In this example, we’ll use the exact approach, but note that
+<code>randomization_accept_prob</code> is set very low (0.0001) for
+demonstration, so that we can see some filtering in action.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>RunMainAnalysis <span class="ot">&lt;-</span> (<span class="sc">!</span><span class="fu">is.null</span>(<span class="fu">check_jax_availability</span>()) )</span></code></pre></div>
+<pre><code>## conda environment is not available. Please install Python/conda and build the backend using fastrerandomize::build_backend(conda_env = &#39;fastrerandomize&#39;, conda = &#39;auto&#39;).</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># if FALSE, consider calling build_backend()</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="cf">if</span>(RunMainAnalysis){</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>CandRandomizations <span class="ot">&lt;-</span> <span class="fu">generate_randomizations</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">n_units =</span> n_units,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">n_treated =</span> n_treated,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">X =</span> X,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">randomization_type =</span> <span class="st">&quot;monte_carlo&quot;</span>, </span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">max_draws =</span> <span class="dv">100000</span><span class="dt">L</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">batch_size =</span> <span class="dv">1000</span><span class="dt">L</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="at">randomization_accept_prob =</span> <span class="fl">0.0001</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>)</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="s3-methods-print-summary-and-plot" class="section level2">
+<h2>4. S3 Methods: Print, Summary, and Plot</h2>
+<p><code>generate_randomizations()</code> returns an S3 object of class
+<code>fastrerandomize_randomizations</code>. We can use its associated
+print, summary, and plot methods to inspect the candidate
+randomizations.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="cf">if</span>(RunMainAnalysis){</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co"># 4a. Print the object</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">print</span>(CandRandomizations)</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># 4b. Summary</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="fu">summary</span>(CandRandomizations)</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co"># 4c. Plot the balance distribution</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="fu">plot</span>(CandRandomizations)</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="randomization-test" class="section level2">
+<h2>3. Randomization Test</h2>
+<p>Next, we showcase a randomization-based inference procedure using
+fastrerandomize.</p>
+<div id="a.-setup-simulated-outcomes" class="section level3">
+<h3>3a. Setup Simulated Outcomes</h3>
+<p>We simulate an outcome Y that depends on our covariates X, the chosen
+randomization, and some true treatment effect τ. Here, we pick the first
+acceptable randomization from our set as our “observed” assignment,
+Wobs.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="cf">if</span>(RunMainAnalysis){</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>CoefY <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">ncol</span>(X))          <span class="co"># Coefficients for outcome model</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>Wobs  <span class="ot">&lt;-</span> CandRandomizations<span class="sc">$</span>randomizations[<span class="dv">1</span>, ]  <span class="co"># use the 1st acceptable randomization</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>tau_true <span class="ot">&lt;-</span> <span class="dv">1</span>                     <span class="co"># true treatment effect</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co"># Generate Y = X * Coef + W*tau + noise</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>Yobs <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>( <span class="fu">as.matrix</span>(X) <span class="sc">%*%</span> <span class="fu">as.matrix</span>(CoefY) <span class="sc">+</span> Wobs <span class="sc">*</span> tau_true <span class="sc">+</span> <span class="fu">rnorm</span>(n_units, <span class="at">sd =</span> <span class="fl">0.1</span>))</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="b.-run-the-randomization-test" class="section level3">
+<h3>3b. Run the Randomization Test</h3>
+<p>We pass our observed treatment assignment (<code>obsW</code>),
+observed outcomes (<code>obsY</code>), and the full matrix of candidate
+randomizations (<code>candidate_randomizations</code>) to
+<code>randomization_test()</code>. This test:</p>
+<ul>
+<li>Computes the observed difference in means</li>
+<li>Permutes the treatment assignment across our candidate
+randomizations</li>
+<li>Estimates the p-value by comparing the observed statistic to its
+permutation distribution</li>
+</ul>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="cf">if</span>(RunMainAnalysis){</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>randomization_test_results <span class="ot">&lt;-</span> <span class="fu">randomization_test</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="at">obsW =</span> Wobs,</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="at">obsY =</span> Yobs,</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="at">candidate_randomizations =</span> CandRandomizations<span class="sc">$</span>randomizations,</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>  <span class="at">findFI =</span> <span class="cn">TRUE</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>)</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co"># Inspect results</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="fu">print</span>(randomization_test_results)</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="fu">summary</span>(randomization_test_results)</span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="fu">plot</span>(randomization_test_results)</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>}</span></code></pre></div>
+<p>The <code>findFI = TRUE</code> flag further attempts to locate a
+fiducial interval (FI) for the treatment effect.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>This tutorial demonstrated a basic workflow with fastrerandomize:</p>
+<ul>
+<li>Generating synthetic or real covariate data</li>
+<li>Producing a set of acceptable treatment assignments via
+randomization</li>
+<li>Visualizing and summarizing these assignments</li>
+<li>Testing for treatment effects with a randomization-based
+approach</li>
+</ul>
+<p>We encourage you to consult the package documentation for more
+advanced functionalities, including GPU-accelerated computations via JAX
+and flexible definitions of balance criteria in addition to what was
+shown here.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
