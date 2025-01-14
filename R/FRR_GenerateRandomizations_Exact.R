@@ -18,18 +18,15 @@
 #'   (diagonal of the covariance matrix) instead of the full matrix inverse when computing 
 #'   balance metrics. This can speed up computations for high-dimensional covariates.
 #'   Default is \code{TRUE}.
-#' @param seed An integer seed for random number generation, used when enumerating 
-#'   or filtering exact randomizations with potentially randomized steps (e.g., 
-#'   random draws in thresholding). Default is \code{NULL} (no fixed seed).
+#' @param threshold_func A function that calculates balance statistics for candidate
+#'   randomizations. Default is \code{VectorizedFastHotel2T2} which computes Hotelling's T-squared
+#'   statistic.
 #' @param verbose A logical value indicating whether to print progress information. Default is \code{TRUE}.
 #' @param conda_env A character string specifying the name of the conda environment to use 
 #'   via \code{reticulate}. Default is "fastrerandomize".
 #' @param conda_env_required A logical indicating whether the specified conda environment 
 #'   must be strictly used. If \code{TRUE}, an error is thrown if the environment is not found. 
 #'   Default is TRUE.
-#' @param threshold_func A function that calculates balance statistics for candidate
-#'   randomizations. Default is \code{VectorizedFastHotel2T2} which computes Hotelling's T-squared
-#'   statistic.
 #'
 #' @return The function returns a \emph{list} with two elements:
 #' \code{candidate_randomizations}: an array of randomization vectors
@@ -77,12 +74,13 @@
 #' \code{\link{generate_randomizations_mc}} for the Monte Carlo version. 
 #'
 #' @export
-generate_randomizations_exact <- function(n_units, n_treated,
+generate_randomizations_exact <- function(
+                                   n_units, 
+                                   n_treated,
                                    X = NULL,
                                    randomization_accept_prob = 1,
                                    approximate_inv = TRUE, 
                                    threshold_func = NULL,
-                                   seed = NULL, 
                                    verbose = TRUE,
                                    conda_env = "fastrerandomize", 
                                    conda_env_required = TRUE){
@@ -107,9 +105,27 @@ generate_randomizations_exact <- function(n_units, n_treated,
     n0_array <- fastrr_env$jnp$array(  (n_units - n_treated) )
     n1_array <- fastrr_env$jnp$array(  n_treated )
     
+    # pre-compute matrix inverse 
+    {
+      SAMP_COV_INV_APPROX <- fastrr_env$jnp$reciprocal( fastrr_env$jnp$var( fastrr_env$jnp$array(as.matrix(X)), axis = 0L) )
+      {
+        SAMP_COV_INV <-  fastrr_env$jnp$cov( fastrr_env$jnp$array(as.matrix(X)), rowvar = FALSE) 
+        IS_METAL_BACKEND <- grepl(reticulate::py_str( fastrr_env$jax$devices()[[1]] ), pattern = "METAL")
+        if(IS_METAL_BACKEND){ 
+          SAMP_COV_INV <- SAMP_COV_INV$to_device(fastrr_env$jax$devices("cpu")[[1]])
+        }
+        SAMP_COV_INV <- fastrr_env$jnp$linalg$inv(SAMP_COV_INV)
+        if(IS_METAL_BACKEND){ 
+          SAMP_COV_INV <- SAMP_COV_INV$to_device(fastrr_env$jax$devices("METAL")[[1]])
+        }
+      }
+    }
+    
     # Calculate balance measure (Hotelling T-squared) for each candidate randomization
     M_results <-  threshold_func(
       fastrr_env$jnp$array( X ),                    # Covariates
+      SAMP_COV_INV,  # matrix inverse 
+      SAMP_COV_INV_APPROX,  # matrix inverse 
       fastrr_env$jnp$array(candidate_randomizations, dtype = fastrr_env$jnp$float32),  # Possible assignments
       n0_array, 
       n1_array,                # Sample sizes

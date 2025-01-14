@@ -9,18 +9,18 @@
 #' @param X A numeric matrix of covariates used for balance checking. Cannot be NULL.
 #' @param randomization_accept_prob A numeric value between 0 and 1 specifying the probability threshold for accepting randomizations based on balance. Default is 1
 #' @param threshold_func A JAX function that computes a balance measure for each randomization. Must be vectorized using \code{jax$vmap} with \code{in_axes = list(NULL, 0L, NULL, NULL)}, and inputs covariates (matrix of X), treatment_assignment (vector of 0s and 1s), n0 (scalar), n1 (scalar). Default is \code{VectorizedFastHotel2T2} which uses Hotelling's T-squared statistic.
-#' @param max_draws An integer specifying the maximum number of randomizations to draw. Default is \code{100000L}. 
-#' @param batch_size An integer specifying how many randomizations to process at once. Default is \code{10000L}. Lower values use less memory but may be slower. 
+#' @param max_draws An integer specifying the maximum number of randomizations to draw.
+#' @param batch_size An integer specifying how many randomizations to process at once. Lower values use less memory but may be slower. 
 #' @param approximate_inv A logical value indicating whether to use an approximate inverse 
 #'   (diagonal of the covariance matrix) instead of the full matrix inverse when computing 
 #'   balance metrics. This can speed up computations for high-dimensional covariates.
 #'   Default is \code{TRUE}.
+#' @param verbose A logical value indicating whether to print detailed information about batch processing progress, and GPU memory usage. Default is \code{FALSE}. 
 #' @param conda_env A character string specifying the name of the conda environment to use 
 #'   via \code{reticulate}. Default is \code{"fastrerandomize"}.
 #' @param conda_env_required A logical indicating whether the specified conda environment 
 #'   must be strictly used. If \code{TRUE}, an error is thrown if the environment is not found. 
 #'   Default is \code{TRUE}.
-#' @param verbose A logical value indicating whether to print detailed information about batch processing progress, and GPU memory usage. Default is \code{FALSE}. 
 #' @details
 #' The function works by:
 #' 1. Generating batches of random permutations.
@@ -67,7 +67,8 @@
 #' @importFrom assertthat assert_that
 #' @export
 #' @md
-generate_randomizations_mc <- function(n_units, n_treated,
+generate_randomizations_mc <- function(n_units, 
+                                       n_treated,
                                        X,
                                        randomization_accept_prob = 1,
                                        threshold_func = NULL, 
@@ -105,6 +106,22 @@ generate_randomizations_mc <- function(n_units, n_treated,
   # Convert X to JAX array (float16 can cause issues with matrix inverse)
   X_jax <- fastrr_env$jnp$array(as.matrix(X), dtype = fastrr_env$jnp$float32)
   
+  # pre-compute matrix inverse 
+  {
+    SAMP_COV_INV_APPROX <- fastrr_env$jnp$reciprocal( fastrr_env$jnp$var( fastrr_env$jnp$array(as.matrix(X)), axis = 0L) )
+  {
+    SAMP_COV_INV <-  fastrr_env$jnp$cov( fastrr_env$jnp$array(as.matrix(X)), rowvar = FALSE) 
+    IS_METAL_BACKEND <- grepl(reticulate::py_str( fastrr_env$jax$devices()[[1]] ), pattern = "METAL")
+    if(IS_METAL_BACKEND){ 
+      SAMP_COV_INV <- SAMP_COV_INV$to_device(fastrr_env$jax$devices("cpu")[[1]])
+    }
+    SAMP_COV_INV <- fastrr_env$jnp$linalg$inv(SAMP_COV_INV)
+    if(IS_METAL_BACKEND){ 
+      SAMP_COV_INV <- SAMP_COV_INV$to_device(fastrr_env$jax$devices("METAL")[[1]])
+    }
+  }
+  }
+
   # Set up sample sizes for treatment/control
   n0_array <- fastrr_env$jnp$array(as.integer(n_units - n_treated))
   n1_array <- fastrr_env$jnp$array(as.integer(n_treated))
@@ -144,6 +161,8 @@ generate_randomizations_mc <- function(n_units, n_treated,
     # Calculate balance measures (e.g., Hotelling T-squared) for each permutation in the batch
     M_results_batch_ <- fastrr_env$jnp$squeeze( threshold_func(
       X_jax,
+      SAMP_COV_INV,
+      SAMP_COV_INV_APPROX, 
       perms_batch,
       n0_array, 
       n1_array, 
@@ -183,12 +202,14 @@ generate_randomizations_mc <- function(n_units, n_treated,
                                    base_vector_jax)
     
     # check work 
-    M_results_batch_ <- fastrr_env$jnp$squeeze( threshold_func(
-      X_jax,
-      top_perms,
-      n0_array, 
-      n1_array, 
-      approximate_inv ) )
+    #M_results_batch_ <- fastrr_env$jnp$squeeze( threshold_func(
+      #X_jax,
+      #SAMP_COV_INV,
+      #SAMP_COV_INV_APPROX, 
+      #top_perms,
+      #n0_array, 
+      #n1_array, 
+      #approximate_inv ) )
   }
 
   if(verbose){ message(sprintf("MC Loop Time (s): %.4f", as.numeric(difftime(Sys.time(), t0, units = "secs"))))}
